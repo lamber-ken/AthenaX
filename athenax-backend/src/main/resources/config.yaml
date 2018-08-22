@@ -1,0 +1,29 @@
+athenax.master.uri: http://localhost:8089
+catalog.impl: com.uber.athenax.backend.catalog.CatalogProviderTest
+clusters:
+  foo:
+    yarn.site.location: hdfs:///flink/at/yarn-site.xml
+    athenax.home.dir: hdfs:///flink/at/home
+    flink.uber.jar.location: hdfs:///flink/at/location
+    localize.resources:
+      - hdfs:///flink/at/log4j.properties
+      - hdfs:///flink/at/flink-conf.yaml
+    additional.jars:
+      - hdfs:///flink/at/hadoop2.jar
+      - hdfs:///flink/at/log4j.jar
+      - hdfs:///flink/at/slf4.jar
+      - hdfs:///flink/at/python.jar
+      - hdfs:///flink/at/flink.jar
+extras:
+  jobstore.leveldb.file: /work/BigData/install/hadoop/hadoop-2.5.0-cdh5.2.0/etc/at/leveldb
+
+
+
+
+
+
+
+
+
+
+

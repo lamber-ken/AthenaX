@@ -32,6 +32,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
@@ -96,7 +97,18 @@ public class AthenaXConfiguration {
       Preconditions.checkNotNull(flinkUberJar, "flink.uber.jar.location is not configured");
 
       YarnConfiguration yarnConf = new YarnConfiguration();
-      yarnConf.addResource(new Path(URI.create(yarnSite)));
+
+
+      try {
+
+        yarnConf.addResource(new FileInputStream("/work/BigData/install/hadoop/hadoop-2.5.0-cdh5.2.0/etc/at/hdfs-site.xml"));
+        yarnConf.addResource(new FileInputStream("/work/BigData/install/hadoop/hadoop-2.5.0-cdh5.2.0/etc/at/yarn-site.xml"));
+        yarnConf.addResource(new FileInputStream("/work/BigData/install/hadoop/hadoop-2.5.0-cdh5.2.0/etc/at/core-site.xml"));
+
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+
 
       return new YarnClusterConfiguration(
           yarnConf, homeDir, new Path(flinkUberJar),

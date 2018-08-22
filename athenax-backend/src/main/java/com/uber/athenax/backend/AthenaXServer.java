@@ -21,10 +21,6 @@ package com.uber.athenax.backend;
 import com.uber.athenax.backend.server.AthenaXConfiguration;
 import com.uber.athenax.backend.server.ServerContext;
 import com.uber.athenax.backend.server.WebServer;
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.CommandLineParser;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 
 import java.io.IOException;
@@ -32,35 +28,26 @@ import java.net.URI;
 import java.nio.file.Paths;
 
 public class AthenaXServer {
-  private static final Options CLI_OPTIONS = new Options()
-      .addOption(null, "conf", true, "The configuration file");
+    private static final Options CLI_OPTIONS = new Options()
+            .addOption(null, "conf", true, "The configuration file");
 
-  private void start(AthenaXConfiguration conf) throws Exception {
-    ServerContext.INSTANCE.initialize(conf);
-    ServerContext.INSTANCE.start();
-    try (WebServer server = new WebServer(URI.create(conf.masterUri()))) {
-      server.start();
-      Thread.currentThread().join();
-    }
-  }
-
-  public static void main(String[] args) throws Exception {
-    CommandLineParser parser = new DefaultParser();
-    CommandLine line = parser.parse(CLI_OPTIONS, args);
-    if (!line.hasOption("conf")) {
-      System.err.println("No configuration file is specified");
-      HelpFormatter formatter = new HelpFormatter();
-      formatter.printHelp("athenax-server", CLI_OPTIONS);
-      System.exit(1);
+    private void start(AthenaXConfiguration conf) throws Exception {
+        ServerContext.INSTANCE.initialize(conf);
+        ServerContext.INSTANCE.start();
+        try (WebServer server = new WebServer(URI.create(conf.masterUri()))) {
+            server.start();
+            Thread.currentThread().join();
+        }
     }
 
-    try {
-      String confFile = line.getOptionValue("conf");
-      AthenaXConfiguration conf = AthenaXConfiguration.load(Paths.get(confFile).toFile());
-      new AthenaXServer().start(conf);
-    } catch (IOException | ClassNotFoundException e) {
-      System.err.println("Failed to parse configuration.");
-      throw e;
+    public static void main(String[] args) throws Exception {
+
+        try {
+            AthenaXConfiguration conf = AthenaXConfiguration.load(Paths.get("/work/projetcs/opensource/uber/AthenaX/athenax-backend/src/main/resources/config.yaml").toFile());
+            new AthenaXServer().start(conf);
+        } catch (IOException | ClassNotFoundException e) {
+            System.err.println("Failed to parse configuration.");
+            throw e;
+        }
     }
-  }
 }

@@ -27,13 +27,13 @@ Follow the [instruction](https://hadoop.apache.org/docs/current/hadoop-project-d
 The next step is to write a YAML-based configuration file. Here is an example:
 
 ```yaml
-athenax.master.uri: http://localhost:8083
-catalog.impl: com.foo.MyCatalogProvider
+athenax.master.uri: http://localhost:8089
+catalog.impl: com.uber.athenax.backend.catalog.CatalogProviderTest
 clusters:
   foo:
-    yarn.site.location: hdfs:///app/athenax/yarn-site.xml
-    athenax.home.dir: hdfs:///tmp/athenax
-    flink.uber.jar.location: hdfs:///app/athenax/flink.jar
+    yarn.site.location: hdfs:///flink/at/yarn-site.xml
+    athenax.home.dir: hdfs:///flink/at/home
+    flink.uber.jar.location: hdfs:///flink/at/flink.jar
     localize.resources:
       - http://foo/log4j.properties
     additional.jars:
@@ -62,7 +62,7 @@ Please see [AthenaXConfiguration](https://github.com/uber/AthenaX/blob/master/at
 ## Start
 
 ```bash
-$ java -jar athenax-backend-0.1-SNAPSHOT.jar --conf <your configuration>
+$ java -jar athenax-backend-0.2-SNAPSHOT.jar --conf <your configuration>
 ```
 
 AthenaX will start serving the [REST API](https://github.com/uber/AthenaX/blob/master/athenax-backend/src/main/resources/athenax-backend-api.yaml) on the configured endpoint. Users can start submitting jobs.

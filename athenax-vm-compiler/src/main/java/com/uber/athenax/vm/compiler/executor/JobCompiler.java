@@ -23,17 +23,23 @@ import com.uber.athenax.vm.api.functions.AthenaXScalarFunction;
 import com.uber.athenax.vm.api.functions.AthenaXTableFunction;
 import com.uber.athenax.vm.api.tables.AthenaXTableCatalog;
 import com.uber.athenax.vm.api.tables.AthenaXTableSinkProvider;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.DataSet;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.streaming.api.TimeCharacteristic;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.java.StreamTableEnvironment;
 import org.apache.flink.table.catalog.ExternalCatalogTable;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.sinks.AppendStreamTableSink;
+import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
@@ -49,114 +55,146 @@ import java.net.Socket;
 import java.util.Map;
 
 public class JobCompiler {
-  private static final Logger LOG = LoggerFactory.getLogger(JobCompiler.class);
-  private final StreamTableEnvironment env;
-  private final JobDescriptor job;
+    private static final Logger LOG = LoggerFactory.getLogger(JobCompiler.class);
+    private final StreamTableEnvironment env;
+    private final JobDescriptor job;
 
-  JobCompiler(StreamTableEnvironment env, JobDescriptor job) {
-    this.job = job;
-    this.env = env;
-  }
-
-  public static void main(String[] args) throws IOException {
-    CompilationResult res = null;
-    try {
-      JobDescriptor job = getJobConf(System.in);
-      res = compileJob(job);
-    } catch (Throwable e) {
-      res = new CompilationResult();
-      res.remoteThrowable(e);
+    JobCompiler(StreamTableEnvironment env, JobDescriptor job) {
+        this.job = job;
+        this.env = env;
     }
 
-    try (OutputStream out = chooseOutputStream(args)) {
-      out.write(res.serialize());
-    }
-  }
+    public static void main(String[] args) throws IOException {
+        CompilationResult res = null;
+        try {
+            JobDescriptor job = getJobConf(System.in);
+            res = compileJob(job);
+        } catch (Throwable e) {
+            res = new CompilationResult();
+            res.remoteThrowable(e);
+        }
 
-  public static CompilationResult compileJob(JobDescriptor job) {
-    StreamExecutionEnvironment execEnv = StreamExecutionEnvironment.createLocalEnvironment();
-    StreamTableEnvironment env = StreamTableEnvironment.getTableEnvironment(execEnv);
-    execEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-    CompilationResult res = new CompilationResult();
-
-    try {
-      res.jobGraph(new JobCompiler(env, job).getJobGraph());
-    } catch (IOException e) {
-      res.remoteThrowable(e);
+        try (OutputStream out = chooseOutputStream(args)) {
+            out.write(res.serialize());
+        }
     }
 
-    return res;
-  }
+    public static CompilationResult compileJob(JobDescriptor job) {
+        StreamExecutionEnvironment execEnv = StreamExecutionEnvironment.createLocalEnvironment();
 
-  private static OutputStream chooseOutputStream(String[] args) throws IOException {
-    if (args.length > 0) {
-      int port = Integer.parseInt(args[0]);
-      Socket sock = new Socket();
-      sock.connect(new InetSocketAddress(InetAddress.getLocalHost(), port));
-      return sock.getOutputStream();
-    } else {
-      return System.out;
+
+        StreamTableEnvironment env = StreamTableEnvironment.getTableEnvironment(execEnv);
+        execEnv.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+        CompilationResult res = new CompilationResult();
+
+        try {
+            res.jobGraph(new JobCompiler(env, job).getJobGraph());
+        } catch (IOException e) {
+            res.remoteThrowable(e);
+        }
+
+        return res;
     }
-  }
 
-  JobGraph getJobGraph() throws IOException {
-    StreamExecutionEnvironment exeEnv = env.execEnv();
-    exeEnv.setParallelism(job.parallelism());
-    this
-        .registerUdfs()
-        .registerInputCatalogs();
-    Table table = env.sqlQuery(job.sql());
-    for (String t : job.outputs().listTables()) {
-      table.writeToSink(getOutputTable(job.outputs().getTable(t)));
+    private static OutputStream chooseOutputStream(String[] args) throws IOException {
+        if (args.length > 0) {
+            int port = Integer.parseInt(args[0]);
+            Socket sock = new Socket();
+            sock.connect(new InetSocketAddress(InetAddress.getLocalHost(), port));
+            return sock.getOutputStream();
+        } else {
+            return System.out;
+        }
     }
-    StreamGraph streamGraph = exeEnv.getStreamGraph();
-    return streamGraph.getJobGraph();
-  }
 
-  static JobDescriptor getJobConf(InputStream is) throws IOException, ClassNotFoundException {
-    try (ObjectInputStream ois = new ObjectInputStream(is)) {
-      return (JobDescriptor) ois.readObject();
+    public static class WC {
+        public String word;
+        public long frequency;
+
+        // public constructor to make it a Flink POJO
+        public WC() {
+        }
+
+        public WC(String word, long frequency) {
+            this.word = word;
+            this.frequency = frequency;
+        }
+
+        @Override
+        public String toString() {
+            return "WC " + word + " " + frequency;
+        }
     }
-  }
 
-  private JobCompiler registerUdfs() {
-    for (Map.Entry<String, String> e : job.udf().entrySet()) {
-      final String name = e.getKey();
-      String clazzName = e.getValue();
-      final Object udf;
+    JobGraph getJobGraph() throws IOException {
 
-      try {
-        Class<?> clazz = Class.forName(clazzName);
-        udf = clazz.newInstance();
-      } catch (ClassNotFoundException | IllegalAccessException | InstantiationException ex) {
-        throw new IllegalArgumentException("Invalid UDF " + name, ex);
-      }
+        StreamExecutionEnvironment execEnv = StreamExecutionEnvironment.createLocalEnvironment();
+        //StreamTableEnvironment env = StreamTableEnvironment.getTableEnvironment(execEnv);
 
-      if (udf instanceof AthenaXScalarFunction) {
-        env.registerFunction(name, (ScalarFunction) udf);
-      } else if (udf instanceof AthenaXTableFunction) {
-        env.registerFunction(name, (TableFunction<?>) udf);
-      } else if (udf instanceof AthenaXAggregateFunction) {
-        env.registerFunction(name, (AggregateFunction<?, ?>) udf);
-      } else {
-        LOG.warn("Unknown UDF {} was found.", clazzName);
-      }
+//        this.registerUdfs();
+//        this.registerInputCatalogs();
+
+//        Table table = env.sqlQuery(job.sql());
+//
+//        for (String t : job.outputs().listTables()) {
+//            table.writeToSink(getOutputTable(job.outputs().getTable(t)));
+//        }
+
+        execEnv.socketTextStream("10.101.52.12", 9999)
+                .print();
+
+
+        LOG.info(execEnv.getExecutionPlan());
+        System.out.println(execEnv.getExecutionPlan());
+
+        StreamGraph streamGraph = execEnv.getStreamGraph();
+        return streamGraph.getJobGraph();
     }
-    return this;
-  }
 
-  private JobCompiler registerInputCatalogs() {
-    for (Map.Entry<String, AthenaXTableCatalog> e : job.inputs().entrySet()) {
-      LOG.debug("Registering input catalog {}", e.getKey());
-      env.registerExternalCatalog(e.getKey(), e.getValue());
+    static JobDescriptor getJobConf(InputStream is) throws IOException, ClassNotFoundException {
+        try (ObjectInputStream ois = new ObjectInputStream(is)) {
+            return (JobDescriptor) ois.readObject();
+        }
     }
-    return this;
-  }
 
-  private AppendStreamTableSink<Row> getOutputTable(
-      ExternalCatalogTable output) throws IOException {
-    AthenaXTableSinkProvider c = TableSinkProviderRegistry.getProvider(output);
-    Preconditions.checkNotNull(c, "Cannot find output connectors for " + output);
-    return c.getAppendStreamTableSink(output);
-  }
+    private JobCompiler registerUdfs() {
+        for (Map.Entry<String, String> e : job.udf().entrySet()) {
+            final String name = e.getKey();
+            String clazzName = e.getValue();
+            final Object udf;
+
+            try {
+                Class<?> clazz = Class.forName(clazzName);
+                udf = clazz.newInstance();
+            } catch (ClassNotFoundException | IllegalAccessException | InstantiationException ex) {
+                throw new IllegalArgumentException("Invalid UDF " + name, ex);
+            }
+
+            if (udf instanceof AthenaXScalarFunction) {
+                env.registerFunction(name, (ScalarFunction) udf);
+            } else if (udf instanceof AthenaXTableFunction) {
+                env.registerFunction(name, (TableFunction<?>) udf);
+            } else if (udf instanceof AthenaXAggregateFunction) {
+                env.registerFunction(name, (AggregateFunction<?, ?>) udf);
+            } else {
+                LOG.warn("Unknown UDF {} was found.", clazzName);
+            }
+        }
+        return this;
+    }
+
+    private JobCompiler registerInputCatalogs() {
+        for (Map.Entry<String, AthenaXTableCatalog> e : job.inputs().entrySet()) {
+            LOG.debug("Registering input catalog {}", e.getKey());
+            env.registerExternalCatalog(e.getKey(), e.getValue());
+        }
+        return this;
+    }
+
+    private AppendStreamTableSink<Row> getOutputTable(
+            ExternalCatalogTable output) throws IOException {
+        AthenaXTableSinkProvider c = TableSinkProviderRegistry.getProvider(output);
+        Preconditions.checkNotNull(c, "Cannot find output connectors for " + output);
+        return c.getAppendStreamTableSink(output);
+    }
 }

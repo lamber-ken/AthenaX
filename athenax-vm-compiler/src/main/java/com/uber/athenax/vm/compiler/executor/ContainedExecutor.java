@@ -37,6 +37,9 @@ public class ContainedExecutor {
     // Ideally it is simpler to use stdout / stderr / pipe,
     // but many loggers will interfere
     try (ServerSocket sock = new ServerSocket()) {
+
+
+
       sock.bind(new InetSocketAddress(InetAddress.getLocalHost(), 0));
       ProcessBuilder builder = new ProcessBuilder(buildMainArg(sock.getLocalPort()));
       Process proc = builder.start();
