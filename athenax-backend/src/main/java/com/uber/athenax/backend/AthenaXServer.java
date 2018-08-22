@@ -43,7 +43,7 @@ public class AthenaXServer {
     public static void main(String[] args) throws Exception {
 
         try {
-            AthenaXConfiguration conf = AthenaXConfiguration.load(Paths.get("/work/projetcs/opensource/uber/AthenaX/athenax-backend/src/main/resources/config.yaml").toFile());
+            AthenaXConfiguration conf = AthenaXConfiguration.load(Paths.get("/work/projetcs/lamber-ken/AthenaX/athenax-backend/src/main/resources/config.yaml").toFile());
             new AthenaXServer().start(conf);
         } catch (IOException | ClassNotFoundException e) {
             System.err.println("Failed to parse configuration.");

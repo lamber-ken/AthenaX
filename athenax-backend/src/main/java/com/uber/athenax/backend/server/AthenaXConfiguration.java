@@ -101,9 +101,9 @@ public class AthenaXConfiguration {
 
       try {
 
-        yarnConf.addResource(new FileInputStream("/work/BigData/install/hadoop/hadoop-2.5.0-cdh5.2.0/etc/at/hdfs-site.xml"));
-        yarnConf.addResource(new FileInputStream("/work/BigData/install/hadoop/hadoop-2.5.0-cdh5.2.0/etc/at/yarn-site.xml"));
-        yarnConf.addResource(new FileInputStream("/work/BigData/install/hadoop/hadoop-2.5.0-cdh5.2.0/etc/at/core-site.xml"));
+        yarnConf.addResource(new FileInputStream("/work/BigData/install/athenax/hdfs-site.xml"));
+        yarnConf.addResource(new FileInputStream("/work/BigData/install/athenax/yarn-site.xml"));
+        yarnConf.addResource(new FileInputStream("/work/BigData/install/athenax/core-site.xml"));
 
       } catch (Exception e) {
         e.printStackTrace();
