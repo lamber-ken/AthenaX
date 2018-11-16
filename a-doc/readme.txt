@@ -24,6 +24,8 @@ http://localhost:8089/ws/v1/jobs/bbdc7ea9-aeff-4893-9f0c-1005003
 4. JobCompiler.java
 
 
+5. hadoop dfs -ls /flink/at/home/.flink/application_1528182205640_2772
+
 
 
 
